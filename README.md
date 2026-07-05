@@ -12,6 +12,20 @@ The code is intentionally independent from the older private research pipeline i
 the parent repository. All dataset paths are passed through command-line
 arguments.
 
+## Dataset, License, and Reporting
+
+The source code in this repository is released under the MIT License. The
+dataset is released separately under the CC-BY-NC-4.0 data license.
+
+Dataset DOI: [10.5281/zenodo.21188771](https://doi.org/10.5281/zenodo.21188771)
+
+Recommended reporting checklist:
+
+- split used (A/B)
+- additional filtering
+- random seed
+- evaluation metric
+
 ## Dataset Structure
 
 The expected raw dataset layout is:
@@ -19,8 +33,8 @@ The expected raw dataset layout is:
 ```text
 raw/
   Eucalyptus_camaldulensis/
-    image1.jpg
-    subfolder_a/
+    specimen_1/
+      image1.jpg
       image2.jpg
   Eucalyptus_cladocalyx/
     ...
@@ -28,8 +42,17 @@ raw/
     ...
 ```
 
-Each top-level folder is treated as one class. Images are scanned recursively, so
-files may appear directly inside the species folder or inside nested subfolders.
+Each top-level folder is treated as one class. For the revised dataset, each
+first-level subfolder below a species folder is treated as one physical wood
+specimen. The public metadata therefore uses:
+
+```text
+group_id = specimen subfolder name
+```
+
+All images with the same `group_id` must stay in the same train/validation/test
+partition. Images are still scanned recursively so the scripts remain robust to
+additional nesting.
 
 The scripts normalize common folder-name variants such as:
 
@@ -61,7 +84,7 @@ Example using the local working raw path:
 
 ```bash
 python public_dib_code/scripts/build_manifest.py \
-  --raw-root /Volumes/Data/data/eucalyptus_raw/data/raw \
+  --raw-root /Users/ntkhanh/Work/PTIT/1.Cá nhân/2.Research/2026/Article/DIB/raw_update \
   --output-dir public_dib_code/outputs/metadata \
   --compute-phash
 ```
@@ -89,10 +112,22 @@ The metadata CSV includes:
 - `file_extension`
 - `sha256`
 - `phash`
+- `group_id`
+- `specimen_key`
+- `light_condition`
 - `parsed_group_id`
+- `legacy_parsed_group_id`
 - `notes`
 
-## Step 2: Prepare or Validate Split B
+## Step 2: Prepare or Validate Split Manifests
+
+The revised workflow supports two predefined manifests:
+
+- `split_A_reference.csv`: specimen-group-disjoint reference split.
+- `split_B_strict.csv`: specimen-group-disjoint and pHash-component-clean split.
+
+Both are regenerated from the revised `raw_update/` tree and the new
+folder-based `group_id` values.
 
 ### Validate an existing strict Split B manifest
 
@@ -117,10 +152,10 @@ python public_dib_code/scripts/prepare_splits.py \
   --seed 42
 ```
 
-This generates a deterministic stratified image-level split and prints a warning
-that pHash near-duplicate groups are not constrained.
+This now generates a deterministic specimen group-aware split by default. Use
+`--no-group-aware` only for a deliberately image-level diagnostic split.
 
-### Generate a pHash-component-aware split
+### Generate Split B: pHash-clean plus specimen-group-disjoint
 
 This requires `metadata.csv` to have non-empty `phash` values, which are created
 by running `build_manifest.py --compute-phash`.
@@ -133,6 +168,20 @@ python public_dib_code/scripts/prepare_splits.py \
   --seed 42 \
   --use-phash-components \
   --phash-threshold 10
+```
+
+When `--use-phash-components` is used, the script combines pHash components with
+the specimen `group_id` constraints. This prevents a physical specimen from
+being split across partitions even when it contains multiple pHash components.
+
+### Generate Split A: specimen-group-disjoint reference split
+
+```bash
+python public_dib_code/scripts/prepare_splits.py \
+  --metadata-csv public_dib_code/outputs/metadata/metadata.csv \
+  --output-dir public_dib_code/outputs/splits \
+  --split-name split_A_reference \
+  --seed 42
 ```
 
 Output examples:
@@ -164,7 +213,35 @@ These checks are technical audits. Passing them should be described carefully as
 evidence against obvious group overlap, exact duplicate, filename, and pHash
 near-duplicate leakage under the performed checks.
 
-## Step 4: Train DenseNet-121 Baseline
+Run the audit separately for both Split A and Split B:
+
+```bash
+python public_dib_code/scripts/audit_splits.py \
+  --metadata-csv public_dib_code/outputs/metadata/metadata.csv \
+  --split-csv public_dib_code/outputs/splits/split_A_reference.csv \
+  --output-dir public_dib_code/outputs/audit_split_A
+
+python public_dib_code/scripts/audit_splits.py \
+  --metadata-csv public_dib_code/outputs/metadata/metadata.csv \
+  --split-csv public_dib_code/outputs/splits/split_B_strict.csv \
+  --output-dir public_dib_code/outputs/audit_split_B
+```
+
+## Step 4: Generate Revision Summary Tables
+
+The following command creates reviewer-facing CSV and LaTeX tables for specimen
+counts, source-institution breakdown, resolution distribution, pHash component
+sizes, file extensions, and lighting summaries.
+
+```bash
+python public_dib_code/scripts/build_revision_tables.py \
+  --metadata-csv public_dib_code/outputs/metadata/metadata.csv \
+  --annotation-xlsx /Users/ntkhanh/Work/PTIT/1.Cá nhân/2.Research/2026/Article/DIB/Meta-data_update.xlsx \
+  --output-dir public_dib_code/outputs/revision_tables \
+  --phash-threshold 10
+```
+
+## Step 5: Train DenseNet-121 Baseline
 
 Do not run this on a laptop unless you intend to train. On a GPU server:
 
@@ -173,7 +250,7 @@ python public_dib_code/scripts/train_classifier.py \
   --model densenet121 \
   --metadata-csv public_dib_code/outputs/metadata/metadata.csv \
   --split-csv public_dib_code/outputs/splits/split_B_strict.csv \
-  --raw-root /Volumes/Data/data/eucalyptus_raw/data/raw \
+  --raw-root /Users/ntkhanh/Work/PTIT/1.Cá nhân/2.Research/2026/Article/DIB/raw_update \
   --output-dir public_dib_code/outputs/densenet121_splitB_seed42 \
   --seed 42 \
   --epochs 50 \

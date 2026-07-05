@@ -6,7 +6,11 @@ import random
 from pathlib import Path
 
 import pandas as pd
-from sklearn.model_selection import train_test_split
+
+try:
+    from sklearn.model_selection import train_test_split
+except ModuleNotFoundError:
+    train_test_split = None
 
 from .constants import SPLIT_NAMES
 from .utils import normalize_class_name
@@ -233,7 +237,11 @@ def validate_existing_split(
         raise FileNotFoundError(f"{len(missing_files)} metadata image paths are missing. Example: {missing_files[0]}")
 
     out_cols = ["image_id", "relative_path", "class_name", "class_index", "split"]
-    optional = [c for c in ["parsed_group_id", "sha256", "phash"] if c in merged.columns]
+    optional = [
+        c
+        for c in ["group_id", "specimen_key", "light_condition", "parsed_group_id", "sha256", "phash"]
+        if c in merged.columns
+    ]
     split_out = merged[out_cols + optional].sort_values(["split", "class_index", "relative_path"]).reset_index(drop=True)
     return split_out, excluded_metadata.reset_index(drop=True), diagnostics
 
@@ -248,6 +256,11 @@ def generate_stratified_split(
     ratios = train_ratio + val_ratio + test_ratio
     if abs(ratios - 1.0) > 1e-6:
         raise ValueError(f"Split ratios must sum to 1.0, got {ratios:.6f}")
+    if train_test_split is None:
+        raise ModuleNotFoundError(
+            "scikit-learn is required for image-level stratified splitting. "
+            "Install scikit-learn or generate a group-aware split without --no-group-aware."
+        )
 
     indices = metadata.index.to_numpy()
     labels = metadata["class_index"].to_numpy()
@@ -328,6 +341,47 @@ def add_phash_components(metadata: pd.DataFrame, threshold: int) -> pd.DataFrame
     return out
 
 
+def add_constraint_components(
+    metadata: pd.DataFrame,
+    group_col: str = "group_id",
+    phash_component_col: str = "phash_component",
+    output_col: str = "constraint_component",
+) -> pd.DataFrame:
+    """Union specimen groups and pHash components into final split units.
+
+    A valid strict split must keep every physical specimen in one partition,
+    while also keeping pHash-near-duplicate components in one partition. This
+    function builds connected components over both constraints within each
+    class.
+    """
+    if group_col not in metadata.columns:
+        raise ValueError(f"Cannot build constraint components; missing column: {group_col}")
+    if phash_component_col not in metadata.columns:
+        raise ValueError(f"Cannot build constraint components; missing column: {phash_component_col}")
+
+    out = metadata.copy()
+    out[output_col] = ""
+    for class_name, class_df in out.groupby("class_name", sort=True):
+        indices = class_df.index.tolist()
+        uf = UnionFind(indices)
+        for _, group_df in class_df.groupby(group_col, sort=True):
+            group_indices = group_df.index.tolist()
+            for idx in group_indices[1:]:
+                uf.union(group_indices[0], idx)
+        for _, component_df in class_df.groupby(phash_component_col, sort=True):
+            component_indices = component_df.index.tolist()
+            for idx in component_indices[1:]:
+                uf.union(component_indices[0], idx)
+
+        root_to_component: dict[int, str] = {}
+        for idx in indices:
+            root = uf.find(idx)
+            if root not in root_to_component:
+                root_to_component[root] = f"{class_name}::constraint_component_{len(root_to_component) + 1:04d}"
+            out.loc[idx, output_col] = root_to_component[root]
+    return out
+
+
 def generate_component_aware_split(
     metadata: pd.DataFrame,
     seed: int,
@@ -343,6 +397,11 @@ def generate_component_aware_split(
         components = []
         for component_id, comp_df in class_df.groupby(component_col, sort=True):
             components.append((str(component_id), comp_df.index.tolist(), len(comp_df)))
+        if len(components) < len(SPLIT_NAMES):
+            raise ValueError(
+                f"Class '{class_df['class_name'].iloc[0]}' has only {len(components)} split components; "
+                f"at least {len(SPLIT_NAMES)} are required for train/val/test coverage."
+            )
         rng.shuffle(components)
         components.sort(key=lambda item: item[2], reverse=True)
 
@@ -373,7 +432,20 @@ def generate_component_aware_split(
 
 def split_manifest_columns(frame: pd.DataFrame) -> pd.DataFrame:
     cols = ["image_id", "relative_path", "class_name", "class_index", "split"]
-    optional = [c for c in ["parsed_group_id", "phash_component", "sha256", "phash"] if c in frame.columns]
+    optional = [
+        c
+        for c in [
+            "group_id",
+            "specimen_key",
+            "light_condition",
+            "parsed_group_id",
+            "phash_component",
+            "constraint_component",
+            "sha256",
+            "phash",
+        ]
+        if c in frame.columns
+    ]
     return frame[cols + optional].sort_values(["split", "class_index", "relative_path"]).reset_index(drop=True)
 
 

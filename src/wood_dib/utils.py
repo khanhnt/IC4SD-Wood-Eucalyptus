@@ -85,6 +85,8 @@ def normalize_class_name(folder_name: str) -> tuple[str, str]:
         "eucalyptussaligna": "Eucalyptus saligna",
         "esaligna": "Eucalyptus saligna",
         "syzygiumhemisphericum": "Syzygium hemisphericum",
+        "syzygiumhemisphericumsyzygiumchanlos": "Syzygium hemisphericum",
+        "syzygiumchanlos": "Syzygium hemisphericum",
         "shemisphericum": "Syzygium hemisphericum",
     }
 
@@ -141,6 +143,25 @@ def short_group_stem(stem: str) -> str:
     return stem or str(stem)
 
 
+def infer_light_condition(path: Path | str) -> str:
+    """Infer acquisition lighting from the filename/path for documentation."""
+    key = ascii_key(Path(str(path)).as_posix())
+    if "indoor" in key:
+        return "indoor"
+    if "outdoor" in key:
+        return "outdoor"
+    return "natural"
+
+
+def infer_specimen_key(group_id: str) -> str:
+    """Return a compact specimen key such as 3284.11 when it is present."""
+    text = str(group_id)
+    match = re.search(r"(\d{4}).*?(\d+)(?:\D*)$", text)
+    if match:
+        return f"{match.group(1)}.{int(match.group(2))}"
+    return text
+
+
 def parse_group_id(relative_path: Path, class_name: str) -> str:
     """Parse a conservative specimen/acquisition group from a raw relative path.
 
@@ -154,6 +175,14 @@ def parse_group_id(relative_path: Path, class_name: str) -> str:
     else:
         group = short_group_stem(relative_path.stem)
     return f"{class_name}::{group}"
+
+
+def specimen_group_id(relative_path: Path) -> str:
+    """Authoritative group id: the first folder below the species folder."""
+    parts = relative_path.parts
+    if len(parts) >= 3:
+        return str(parts[1])
+    return short_group_stem(relative_path.stem)
 
 
 def set_reproducible_seed(seed: int) -> None:

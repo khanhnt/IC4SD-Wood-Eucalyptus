@@ -55,6 +55,7 @@ def main() -> None:
     summary["created_at_utc"] = timestamp_utc()
     summary["expected_classes"] = CANONICAL_CLASSES
     summary["metadata_csv"] = str(metadata_path)
+    summary["phash_backend"] = result.phash_backend
     save_json(args.output_dir / "manifest_summary.json", summary)
 
     print("\n[Manifest] Summary", flush=True)
@@ -64,6 +65,7 @@ def main() -> None:
         print(f"  {class_name:28s} {count:5d}", flush=True)
     print(f"  Skipped files:         {summary['skipped_files']}", flush=True)
     print(f"  Unreadable images:     {summary['unreadable_images']}", flush=True)
+    print(f"  pHash backend:         {summary['phash_backend']}", flush=True)
     print(
         "  Width min/max/mean:    "
         f"{summary['image_size_summary']['width']['min']} / "

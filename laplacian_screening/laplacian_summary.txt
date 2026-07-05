@@ -1,0 +1,66 @@
+Laplacian-variance sharpness screening
+==================================================
+Images measured : 2910
+Unreadable/errors: 0
+Resize longer side: 1024
+
+Resolution distribution (W x H : count):
+  1280 x 1024 : 1963
+  2560 x 2048 : 786
+  2560 x 1920 : 161
+
+Overall distribution of Laplacian variance:
+     mean : 634.76
+      std : 400.62
+      min : 25.51
+       p1 : 98.82
+       p5 : 158.63
+      p25 : 360.70
+   median : 555.27
+      p75 : 800.61
+      p95 : 1516.71
+      max : 2577.81
+
+Images below candidate thresholds:
+  <     30 :    2 images (0.07%)
+  <     50 :    2 images (0.07%)
+  <     75 :   11 images (0.38%)
+  <    100 :   32 images (1.10%)
+  <    150 :  129 images (4.43%)
+
+Per-class (n | min | median | mean):
+  Eucalyptus camaldulensis     n=288  min=   171.6 median=   578.8 mean=   576.1
+  Eucalyptus cladocalyx        n=348  min=    25.5 median=   271.2 mean=   301.2
+  Eucalyptus deglupta          n=341  min=   255.4 median=   782.3 mean=   769.1
+  Eucalyptus diversicolor      n=337  min=   281.6 median=   970.5 mean=   968.1
+  Eucalyptus grandis           n=405  min=    65.9 median=   338.5 mean=   351.0
+  Eucalyptus microcorys        n=396  min=    69.0 median=   573.0 mean=   528.2
+  Eucalyptus saligna           n=397  min=    58.2 median=   486.5 mean=   470.1
+  Syzygium hemisphericum       n=398  min=   139.9 median=  1172.0 mean=  1130.5
+
+25 lowest-scoring images (inspect these manually):
+       25.5  Eucalyptus cladocalyx    Eucalyptus_cladocalyx/3282.Eucalyptus cladocalyx.6/3282.Eucalyptus cladocalyx.6 (141).png
+       26.7  Eucalyptus cladocalyx    Eucalyptus_cladocalyx/3282.Eucalyptus cladocalyx.6/3282.Eucalyptus cladocalyx.6 (140).png
+       55.9  Eucalyptus cladocalyx    Eucalyptus_cladocalyx/3282.Eucalyptus cladocalyx.10/3282.Eucalyptus cladocalyx.10 (225).png
+       58.2  Eucalyptus saligna       Eucalyptus_saligna/3293.Eucalyptus saligna.10/3293.Eucalyptus saligna.10  (270).png
+       65.9  Eucalyptus grandis       Eucalyptus_grandis/3284.Eucalyptus grandis.1/3284.Eucalyptus grandis.1 (19).png
+       69.0  Eucalyptus microcorys    Eucalyptus_microcorys/3283.Eucalyptus_microcorys.11/Eucalyptus_microcorys.11.indoor.15.png
+       71.0  Eucalyptus grandis       Eucalyptus_grandis/3284.Eucalyptus grandis.3/3284.Eucalyptus grandis.3. (84).png
+       72.2  Eucalyptus cladocalyx    Eucalyptus_cladocalyx/3282.Eucalyptus cladocalyx.6/3282.Eucalyptus cladocalyx.6 (139).png
+       73.4  Eucalyptus grandis       Eucalyptus_grandis/3284.Eucalyptus grandis.1/3284.Eucalyptus grandis.1 (1).png
+       74.3  Eucalyptus cladocalyx    Eucalyptus_cladocalyx/3282.Eucalyptus cladocalyx.6/3282.Eucalyptus cladocalyx.6 (142).png
+       74.9  Eucalyptus grandis       Eucalyptus_grandis/3284.Eucalyptus grandis.11/Eucalyptus grandis.11.indoor.27.png
+       75.2  Eucalyptus saligna       Eucalyptus_saligna/3293.Eucalyptus saligna.10/3293.Eucalyptus saligna.10  (269).png
+       76.0  Eucalyptus microcorys    Eucalyptus_microcorys/3283.Eucalyptus_microcorys.11/Eucalyptus_microcorys.11.outdoor.1.png
+       79.8  Eucalyptus cladocalyx    Eucalyptus_cladocalyx/3282.Eucalyptus cladocalyx.2/3282.Eucalyptus cladocalyx.2 (29).png
+       79.9  Eucalyptus grandis       Eucalyptus_grandis/3284.Eucalyptus grandis.3/3284.Eucalyptus grandis.3. (73).png
+       80.0  Eucalyptus microcorys    Eucalyptus_microcorys/3283.Eucalyptus_microcorys.11/Eucalyptus_microcorys.11.indoor.47.png
+       80.2  Eucalyptus cladocalyx    Eucalyptus_cladocalyx/3282.Eucalyptus cladocalyx.6/3282.Eucalyptus cladocalyx.6 (134).png
+       83.6  Eucalyptus grandis       Eucalyptus_grandis/3284.Eucalyptus grandis.12/Eucalyptus grandis.3284.12.8.png
+       86.5  Eucalyptus cladocalyx    Eucalyptus_cladocalyx/3282.Eucalyptus cladocalyx.11/Eucalyptus cladocalyx.3282.outdoor.11.12.png
+       87.5  Eucalyptus microcorys    Eucalyptus_microcorys/3283.Eucalyptus_microcorys.11/Eucalyptus_microcorys.11.indoor.32.png
+       90.2  Eucalyptus microcorys    Eucalyptus_microcorys/3283.Eucalyptus_microcorys.11/Eucalyptus_microcorys.11.outdoor.29.png
+       90.8  Eucalyptus microcorys    Eucalyptus_microcorys/3283.Eucalyptus_microcorys.11/Eucalyptus_microcorys.11.indoor.14.png
+       92.2  Eucalyptus microcorys    Eucalyptus_microcorys/3283.Eucalyptus_microcorys.11/Eucalyptus_microcorys.11.indoor.13.png
+       94.1  Eucalyptus grandis       Eucalyptus_grandis/3284.Eucalyptus grandis.12/Eucalyptus grandis.3284.12.15.png
+       94.4  Eucalyptus microcorys    Eucalyptus_microcorys/3283.Eucalyptus_microcorys.11/Eucalyptus_microcorys.11.indoor.17.png

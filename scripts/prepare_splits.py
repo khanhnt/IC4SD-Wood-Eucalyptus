@@ -11,6 +11,7 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PACKAGE_ROOT / "src"))
 
 from wood_dib.splitting import (
+    add_constraint_components,
     add_phash_components,
     generate_component_aware_split,
     generate_stratified_split,
@@ -34,6 +35,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--test-ratio", type=float, default=0.15)
     parser.add_argument("--use-phash-components", action="store_true")
     parser.add_argument("--phash-threshold", type=int, default=10)
+    parser.add_argument(
+        "--no-group-aware",
+        action="store_true",
+        help="Generate an image-level split instead of keeping specimen group_id values intact.",
+    )
     parser.add_argument(
         "--allow-subset",
         action="store_true",
@@ -65,18 +71,42 @@ def main() -> None:
         mode = "validated_existing_split"
     else:
         validation_diagnostics = {}
+        group_aware = not args.no_group_aware
         if args.use_phash_components:
             print(f"[Split] Generating pHash-component-aware split, threshold={args.phash_threshold}", flush=True)
             metadata = add_phash_components(metadata, threshold=args.phash_threshold)
+            component_col = "phash_component"
+            if group_aware:
+                print("[Split] Combining pHash components with specimen group_id constraints.", flush=True)
+                metadata = add_constraint_components(
+                    metadata,
+                    group_col="group_id",
+                    phash_component_col="phash_component",
+                    output_col="constraint_component",
+                )
+                component_col = "constraint_component"
             split_df = generate_component_aware_split(
                 metadata,
                 seed=args.seed,
                 train_ratio=args.train_ratio,
                 val_ratio=args.val_ratio,
                 test_ratio=args.test_ratio,
-                component_col="phash_component",
+                component_col=component_col,
             )
-            mode = "generated_phash_component_split"
+            mode = "generated_phash_group_constraint_split" if group_aware else "generated_phash_component_split"
+        elif group_aware:
+            if "group_id" not in metadata.columns:
+                raise ValueError("metadata.csv has no group_id column; cannot generate a group-aware split.")
+            print("[Split] Generating specimen group-aware split.", flush=True)
+            split_df = generate_component_aware_split(
+                metadata,
+                seed=args.seed,
+                train_ratio=args.train_ratio,
+                val_ratio=args.val_ratio,
+                test_ratio=args.test_ratio,
+                component_col="group_id",
+            )
+            mode = "generated_group_aware_split"
         else:
             print("[Split] Generating stratified image-level split.", flush=True)
             print("[WARN] pHash components were not requested; near-duplicate groups are not constrained.", flush=True)
@@ -104,6 +134,8 @@ def main() -> None:
         "train_ratio": args.train_ratio,
         "val_ratio": args.val_ratio,
         "test_ratio": args.test_ratio,
+        "group_aware": bool(not args.no_group_aware),
+        "phash_threshold": args.phash_threshold if args.use_phash_components else None,
         "n_images": int(len(split_df)),
         "n_classes": int(split_df["class_name"].nunique()),
         "split_counts": {str(k): int(v) for k, v in split_df["split"].value_counts().sort_index().items()},

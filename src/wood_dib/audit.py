@@ -14,7 +14,11 @@ from .utils import save_json
 
 def write_split_distribution_plot(distribution: pd.DataFrame, output_path: Path) -> None:
     """Save a readable horizontal grouped bar chart for class counts per split."""
-    import matplotlib
+    try:
+        import matplotlib
+    except ModuleNotFoundError:
+        print("[WARN] matplotlib is not installed; skipping split_distribution.png.", flush=True)
+        return
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -59,7 +63,20 @@ def write_split_distribution_plot(distribution: pd.DataFrame, output_path: Path)
 
 def merge_metadata_split(metadata: pd.DataFrame, split_df: pd.DataFrame) -> pd.DataFrame:
     keep = ["image_id", "relative_path", "class_name", "class_index", "split"]
-    optional = [c for c in ["parsed_group_id", "sha256", "phash", "original_filename", "raw_path"] if c in metadata.columns]
+    optional = [
+        c
+        for c in [
+            "group_id",
+            "specimen_key",
+            "light_condition",
+            "parsed_group_id",
+            "sha256",
+            "phash",
+            "original_filename",
+            "raw_path",
+        ]
+        if c in metadata.columns
+    ]
     meta = metadata[["image_id"] + [c for c in optional if c != "image_id"]].drop_duplicates("image_id")
     merged = split_df[keep].merge(meta, on="image_id", how="left", suffixes=("", "_metadata"))
     if merged["relative_path"].isna().any():
@@ -106,6 +123,39 @@ def filename_overlap(frame: pd.DataFrame) -> pd.DataFrame:
         work["original_filename"] = work["relative_path"].map(lambda x: Path(str(x)).name)
     work["normalized_filename"] = work["original_filename"].astype(str).str.lower().str.replace(r"\s+", " ", regex=True).str.strip()
     return cross_split_overlap(work, "normalized_filename", "filename")
+
+
+def exact_hash_overlap(frame: pd.DataFrame) -> pd.DataFrame:
+    if "sha256" not in frame.columns or frame["sha256"].fillna("").eq("").all():
+        return pd.DataFrame(
+            columns=[
+                "sha256",
+                "image_id",
+                "split",
+                "class_name",
+                "group_id",
+                "relative_path",
+            ]
+        )
+
+    rows = []
+    group_column = "group_id" if "group_id" in frame.columns else "parsed_group_id"
+    work = frame[frame["sha256"].fillna("").astype(str).ne("")].copy()
+    for sha256, hash_df in work.groupby("sha256", sort=True):
+        if hash_df["split"].nunique() <= 1:
+            continue
+        for _, row in hash_df.sort_values(["split", "class_name", "relative_path"]).iterrows():
+            rows.append(
+                {
+                    "sha256": sha256,
+                    "image_id": row["image_id"],
+                    "split": row["split"],
+                    "class_name": row["class_name"],
+                    "group_id": row.get(group_column, ""),
+                    "relative_path": row["relative_path"],
+                }
+            )
+    return pd.DataFrame(rows)
 
 
 def phash_overlap(frame: pd.DataFrame, thresholds: list[int]) -> pd.DataFrame:
@@ -168,10 +218,12 @@ def summarize_audit(
     else:
         phash_counts = {str(threshold): 0 for threshold in thresholds}
 
+    hash_findings = int(hash_report["sha256"].nunique()) if "sha256" in hash_report.columns else int(len(hash_report))
+
     return {
         "n_images_by_split": distribution.groupby("split")["n_images"].sum().to_dict(),
         "group_overlap_rows": int(len(group_report)),
-        "sha256_overlap_rows": int(len(hash_report)),
+        "sha256_overlap_rows": hash_findings,
         "filename_overlap_rows": int(len(filename_report)),
         "phash_candidate_pairs_by_threshold": phash_counts,
         "passed_basic_audits": bool(len(group_report) == 0 and len(hash_report) == 0 and len(filename_report) == 0),
@@ -210,10 +262,11 @@ def save_audit_outputs(frame: pd.DataFrame, output_dir: Path, thresholds: list[i
     distribution.to_csv(output_dir / "split_distribution.csv", index=False)
     write_split_distribution_plot(distribution, output_dir / "split_distribution.png")
 
-    group_report = cross_split_overlap(frame, "parsed_group_id", "group_id")
+    group_column = "group_id" if "group_id" in frame.columns else "parsed_group_id"
+    group_report = cross_split_overlap(frame, group_column, "group_id")
     group_report.to_csv(output_dir / "group_overlap_report.csv", index=False)
 
-    hash_report = cross_split_overlap(frame, "sha256", "sha256")
+    hash_report = exact_hash_overlap(frame)
     hash_report.to_csv(output_dir / "hash_overlap_report.csv", index=False)
 
     filename_report = filename_overlap(frame)
@@ -223,7 +276,8 @@ def save_audit_outputs(frame: pd.DataFrame, output_dir: Path, thresholds: list[i
     phash_report.to_csv(output_dir / "phash_overlap_report.csv", index=False)
 
     summary = summarize_audit(distribution, group_report, hash_report, filename_report, phash_report, thresholds)
-    summary["group_id_available"] = bool("parsed_group_id" in frame.columns and not frame["parsed_group_id"].fillna("").eq("").all())
+    summary["group_column"] = group_column
+    summary["group_id_available"] = bool(group_column in frame.columns and not frame[group_column].fillna("").eq("").all())
     summary["sha256_available"] = bool("sha256" in frame.columns and not frame["sha256"].fillna("").eq("").all())
     summary["phash_available"] = bool("phash" in frame.columns and not frame["phash"].fillna("").eq("").all())
     if not summary["sha256_available"]:
