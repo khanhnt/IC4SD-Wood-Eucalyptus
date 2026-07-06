@@ -1,4 +1,4 @@
-# IC4SD-Wood-Eucalyptus Public Data in Brief Code
+<img width="468" height="14" alt="image" src="https://github.com/user-attachments/assets/e98fe11a-5bd8-451c-b4e7-be143219d613" /># IC4SD-Wood-Eucalyptus Public Data in Brief Code
 
 This package supports the **IC4SD-Wood-Eucalyptus** Data in Brief manuscript.
 It provides clean, self-contained scripts to:
@@ -17,7 +17,7 @@ arguments.
 The source code in this repository is released under the MIT License. The
 dataset is released separately under the CC-BY-NC-4.0 data license.
 
-Dataset DOI: [10.5281/zenodo.21188771](https://doi.org/10.5281/zenodo.21188771)
+Dataset DOI: [10.5281/zenodo.21216065](https://doi.org/10.5281/zenodo.21216065)
 
 Recommended reporting checklist:
 
